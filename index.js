@@ -11,16 +11,52 @@ app.use(cors());
 app.use(express.json());
 
 
+// *****************************************************************************************
+
 // mongodb 
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://<username>:<password>@cluster0.cjxkvs1.mongodb.net/?retryWrites=true&w=majority";
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cjxkvs1.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
-client.connect(err => {
-    const collection = client.db("test").collection("devices");
-    // perform actions on the collection object
-    client.close();
-});
+
+async function run() {
+
+    try {
+        const categoriesCollection = client.db('Arrow-Computer').collection('productCategories');
+        const productsCollection = client.db('Arrow-Computer').collection('products');
+
+        app.get('/categories', async (req, res) => {
+            const query = {}
+            const categories = await categoriesCollection.find(query).toArray();
+            res.send(categories);
+        });
+
+
+        app.get('/products/:product_type', async (req, res) => {
+            const type = req.params.product_type;
+
+            console.log(type);
+
+            const query = { product_type: type };
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        })
+
+
+    }
+    finally {
+
+    }
+
+
+
+}
+run().catch(error => console.log(error));
+
+
+
+
+// *****************************************************************************************
 
 
 app.get('/', (req, res) => {
