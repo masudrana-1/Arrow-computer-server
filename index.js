@@ -15,7 +15,7 @@ app.use(express.json());
 
 // mongodb 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cjxkvs1.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
@@ -24,6 +24,7 @@ async function run() {
     try {
         const categoriesCollection = client.db('Arrow-Computer').collection('productCategories');
         const productsCollection = client.db('Arrow-Computer').collection('products');
+        const productCartCollection = client.db('Arrow-Computer').collection('productCart');
         const usersCollection = client.db('Arrow-Computer').collection('users');
 
         app.get('/categories', async (req, res) => {
@@ -50,6 +51,12 @@ async function run() {
             res.send(products);
         });
 
+        app.get('/productCart', async (req, res) => {
+            const query = {};
+            const products = await productCartCollection.find(query).toArray();
+            res.send(products);
+        });
+
 
 
 
@@ -61,10 +68,17 @@ async function run() {
             res.send(result);
         });
 
+        app.post('/productCart', async (req, res) => {
+            const product = req.body;
+            const result = await productCartCollection.insertOne(product);
+            res.send(result);
+        });
 
 
 
-        // user 
+
+
+        // user  api
         app.get('/users', async (req, res) => {
             const query = {};
             const users = await usersCollection.find(query).toArray();
@@ -87,6 +101,33 @@ async function run() {
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+
+
+        // delete api 
+
+        app.delete('/users/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) }
+            const result = await usersCollection.deleteOne(filter);
+            res.send(result);
+        });
+
+
+        app.delete('/products/:title', async (req, res) => {
+            const title = req.params.title;
+            const filter = { title: title };
+            const result = await productsCollection.deleteOne(filter);
+            res.send(result);
+        });
+
+
+        app.delete('/productCart/:title', async (req, res) => {
+            const title = req.params.title;
+            const filter = { title: title };
+            const result = await productCartCollection.deleteOne(filter);
             res.send(result);
         });
 
