@@ -24,6 +24,7 @@ async function run() {
     try {
         const categoriesCollection = client.db('Arrow-Computer').collection('productCategories');
         const productsCollection = client.db('Arrow-Computer').collection('products');
+        const usersCollection = client.db('Arrow-Computer').collection('users');
 
         app.get('/categories', async (req, res) => {
             const query = {}
@@ -31,6 +32,8 @@ async function run() {
             res.send(categories);
         });
 
+
+        // get 
 
         app.get('/products', async (req, res) => {
             const query = {};
@@ -41,19 +44,53 @@ async function run() {
 
         app.get('/products/:product_type', async (req, res) => {
             const type = req.params.product_type;
-
-            console.log(type);
-
+            // console.log(type);
             const query = { product_type: type };
             const products = await productsCollection.find(query).toArray();
             res.send(products);
         });
 
+
+
+
+        // post 
+
         app.post('/products', async (req, res) => {
             const product = req.body;
             const result = await productsCollection.insertOne(product);
             res.send(result);
-        })
+        });
+
+
+
+
+        // user 
+        app.get('/users', async (req, res) => {
+            const query = {};
+            const users = await usersCollection.find(query).toArray();
+            res.send(users);
+        });
+
+
+
+        app.get('/users/:role', async (req, res) => {
+            const user = req.params.role;
+            const query = { role: user };
+            console.log(query);
+            const userRole = await usersCollection.find(query).toArray();
+            res.send(userRole);
+        });
+
+
+
+
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+
 
 
     }
