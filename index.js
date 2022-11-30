@@ -5,7 +5,10 @@ require('dotenv').config();
 const port = process.env.PORT || 5000;
 const app = express();
 
+// const stripeSk = require("stripe")(process.env.REACT_APP_STRIPE_SK);
+const stripeSk = require("stripe")("sk_test_51M7AIcJbEvprLQEgKhNa8jmgjlcPxTPcPjj5er1AVt5DPTAxI9otLmFLULm3istn3XYDd99Hn5odWQmBoF69amLW00KMC0chOn");
 
+console.log(stripeSk);
 
 app.use(cors());
 app.use(express.json());
@@ -40,8 +43,15 @@ async function run() {
         // get 
 
         app.get('/products', async (req, res) => {
-            const query = {};
-            const products = await productsCollection.find(query).toArray();
+            let query = {};
+
+            if (req.query.email) {
+                query = {
+                    email: req.query.email
+                }
+            }
+            const cursor = productsCollection.find(query);
+            const products = await cursor.toArray();
             res.send(products);
         });
 
@@ -54,9 +64,22 @@ async function run() {
             res.send(products);
         });
 
+        // app.get('/productCart', async (req, res) => {
+        //     let query = {};
+        //     const cursor = productCartCollection.find(query);
+        //     const products = await productCartCollection.find(query).toArray();
+        //     res.send(products);
+        // });
         app.get('/productCart', async (req, res) => {
-            const query = {};
-            const products = await productCartCollection.find(query).toArray();
+            let query = {};
+
+            if (req.query.email) {
+                query = {
+                    email: req.query.email
+                }
+            }
+            const cursor = productCartCollection.find(query);
+            const products = await cursor.toArray();
             res.send(products);
         });
 
@@ -65,9 +88,22 @@ async function run() {
             const products = await advertiseCollection.find(query).toArray();
             res.send(products);
         });
+        // app.get('/wishlist', async (req, res) => {
+        //     const query = {};
+        //     const products = await wishlistCollection.find(query).toArray();
+        //     res.send(products);
+        // });
         app.get('/wishlist', async (req, res) => {
-            const query = {};
-            const products = await wishlistCollection.find(query).toArray();
+            let query = {};
+
+            if (req.query.email) {
+                query = {
+                    email: req.query.email
+                }
+            }
+
+            const cursor = wishlistCollection.find(query);
+            const products = await cursor.toArray();
             res.send(products);
         });
 
@@ -85,6 +121,14 @@ async function run() {
         });
 
         app.post('/productCart', async (req, res) => {
+
+            // let query = {};
+            // if (req.query.email) {
+            //     query = {
+            //         email: req.query.email
+            //     }
+            // }
+
             const product = req.body;
             const result = await productCartCollection.insertOne(product);
             res.send(result);
@@ -112,14 +156,36 @@ async function run() {
             res.send(users);
         });
 
-
-
         app.get('/users/:role', async (req, res) => {
             const user = req.params.role;
             const query = { role: user };
             const userRole = await usersCollection.find(query).toArray();
             res.send(userRole);
         });
+
+        app.get('/users/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+            res.send({ isAdmin: user?.role === 'admin' });
+        })
+        app.get('/users/buyer/:email', async (req, res) => {
+            const email = req.params.email;
+            // console.log(email);
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+            // console.log(user);
+            res.send({ isBuyer: user?.role === 'Buyer' });
+        })
+
+
+        app.get('/users/seller/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+            res.send({ isSeller: user?.role === 'Seller' });
+        })
+
 
 
 
@@ -172,12 +238,11 @@ async function run() {
 
         //********************************************************/
 
-        app.get('/productCard/:id', async (req, res) => {
+        app.get('/productCart/:id', async (req, res) => {
             const id = req.params.id;
-            console.log(id);
-            const filter = { _id: ObjectId(id) };
-            const result = await productCartCollection.findOne(filter);
-            res.send(result);
+            const query = { _id: ObjectId(id) }
+            const result = await productCartCollection.findOne(query);
+            res.send(result)
         })
 
 
@@ -187,10 +252,10 @@ async function run() {
             const productCart = req.body;
             const price = productCart.price;
 
-            // price k poysay convert korte hobe 
+            console.log(price);
             const amount = price * 100;
 
-            const paymentIntent = await stripe.paymentIntents.create({
+            const paymentIntent = await stripeSk.paymentIntents.create({
                 currency: 'usd',
                 amount: amount,
                 "payment_method_types": [
@@ -209,7 +274,7 @@ async function run() {
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
 
-            const id = payment._id;
+            const id = payment.product_id;
             const filter = { _id: ObjectId(id) };
             const updatedDoc = {
                 $set: {
@@ -217,7 +282,7 @@ async function run() {
                     transactionId: payment.transactionId
                 }
             }
-            const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc);
+            const updatedResult = await productCartCollection.updateOne(filter, updatedDoc);
 
             res.send(result);
         })
