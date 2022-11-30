@@ -6,9 +6,6 @@ const port = process.env.PORT || 5000;
 const app = express();
 
 const stripeSk = require("stripe")(process.env.REACT_APP_STRIPE_SK);
-// const stripeSk = require("stripe")("sk_test_51M7AIcJbEvprLQEgKhNa8jmgjlcPxTPcPjj5er1AVt5DPTAxI9otLmFLULm3istn3XYDd99Hn5odWQmBoF69amLW00KMC0chOn");
-
-// console.log(stripeSk);
 
 app.use(cors());
 app.use(express.json());
@@ -23,31 +20,6 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 async function run() {
-
-
-    // jwt function 
-    function verifyJWT(req, res, next) {
-        const authHeader = req.headers.authorization;
-        // console.log(authHeader);
-
-        if (!authHeader) {
-            return res.status(401).send({ message: 'Unauthorized access' });
-        }
-
-        const token = authHeader.split(' ')[1];
-        // console.log(token);
-        // console.log(process.env.ACCESS_TOKEN);
-
-        jwt.verify(token, process.env.ACCESS_TOKEN, function (error, decoded) {
-            // console.log(decoded);
-            if (error) {
-                return res.status(403).send({ message: "forbidden access" });
-            }
-            req.decoded = decoded;
-            next();
-        });
-    }
-
 
     try {
         const categoriesCollection = client.db('Arrow-Computer').collection('productCategories');
@@ -126,27 +98,9 @@ async function run() {
 
 
 
-        // jwt
-        // app.get('/jwt', async (req, res) => {
-
-        //     // user login ace ki na seta email diye check korbo
-        //     // thakle token dibo na thakle dibo na 
-
-        //     const email = req.query.email;
-        //     const query = { email: email };
-        //     const user = await userCollection.findOne(query);
-        //     if (user) {
-        //         const token = jwt.sign({ email }, process.env.ACCESS_TOKEN);
-        //         return res.send({ accessToken: token });
-        //     }
-        //     res.status(403).send({ accessToken: '' });
-        // });
-
-
-
         // post api
 
-        app.post('/products', verifyJWT, async (req, res) => {
+        app.post('/products', async (req, res) => {
             const product = req.body;
             const result = await productsCollection.insertOne(product);
             res.send(result);
