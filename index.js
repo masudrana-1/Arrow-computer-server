@@ -5,10 +5,10 @@ require('dotenv').config();
 const port = process.env.PORT || 5000;
 const app = express();
 
-// const stripeSk = require("stripe")(process.env.REACT_APP_STRIPE_SK);
-const stripeSk = require("stripe")("sk_test_51M7AIcJbEvprLQEgKhNa8jmgjlcPxTPcPjj5er1AVt5DPTAxI9otLmFLULm3istn3XYDd99Hn5odWQmBoF69amLW00KMC0chOn");
+const stripeSk = require("stripe")(process.env.REACT_APP_STRIPE_SK);
+// const stripeSk = require("stripe")("sk_test_51M7AIcJbEvprLQEgKhNa8jmgjlcPxTPcPjj5er1AVt5DPTAxI9otLmFLULm3istn3XYDd99Hn5odWQmBoF69amLW00KMC0chOn");
 
-console.log(stripeSk);
+// console.log(stripeSk);
 
 app.use(cors());
 app.use(express.json());
@@ -23,6 +23,31 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 async function run() {
+
+
+    // jwt function 
+    function verifyJWT(req, res, next) {
+        const authHeader = req.headers.authorization;
+        // console.log(authHeader);
+
+        if (!authHeader) {
+            return res.status(401).send({ message: 'Unauthorized access' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        // console.log(token);
+        // console.log(process.env.ACCESS_TOKEN);
+
+        jwt.verify(token, process.env.ACCESS_TOKEN, function (error, decoded) {
+            // console.log(decoded);
+            if (error) {
+                return res.status(403).send({ message: "forbidden access" });
+            }
+            req.decoded = decoded;
+            next();
+        });
+    }
+
 
     try {
         const categoriesCollection = client.db('Arrow-Computer').collection('productCategories');
@@ -40,7 +65,7 @@ async function run() {
         });
 
 
-        // get 
+        // get api 
 
         app.get('/products', async (req, res) => {
             let query = {};
@@ -64,12 +89,7 @@ async function run() {
             res.send(products);
         });
 
-        // app.get('/productCart', async (req, res) => {
-        //     let query = {};
-        //     const cursor = productCartCollection.find(query);
-        //     const products = await productCartCollection.find(query).toArray();
-        //     res.send(products);
-        // });
+
         app.get('/productCart', async (req, res) => {
             let query = {};
 
@@ -88,11 +108,7 @@ async function run() {
             const products = await advertiseCollection.find(query).toArray();
             res.send(products);
         });
-        // app.get('/wishlist', async (req, res) => {
-        //     const query = {};
-        //     const products = await wishlistCollection.find(query).toArray();
-        //     res.send(products);
-        // });
+
         app.get('/wishlist', async (req, res) => {
             let query = {};
 
@@ -110,25 +126,33 @@ async function run() {
 
 
 
+        // jwt
+        // app.get('/jwt', async (req, res) => {
+
+        //     // user login ace ki na seta email diye check korbo
+        //     // thakle token dibo na thakle dibo na 
+
+        //     const email = req.query.email;
+        //     const query = { email: email };
+        //     const user = await userCollection.findOne(query);
+        //     if (user) {
+        //         const token = jwt.sign({ email }, process.env.ACCESS_TOKEN);
+        //         return res.send({ accessToken: token });
+        //     }
+        //     res.status(403).send({ accessToken: '' });
+        // });
 
 
-        // post 
 
-        app.post('/products', async (req, res) => {
+        // post api
+
+        app.post('/products', verifyJWT, async (req, res) => {
             const product = req.body;
             const result = await productsCollection.insertOne(product);
             res.send(result);
         });
 
         app.post('/productCart', async (req, res) => {
-
-            // let query = {};
-            // if (req.query.email) {
-            //     query = {
-            //         email: req.query.email
-            //     }
-            // }
-
             const product = req.body;
             const result = await productCartCollection.insertOne(product);
             res.send(result);
@@ -149,7 +173,7 @@ async function run() {
 
 
 
-        // user  api
+        // user get api
         app.get('/users', async (req, res) => {
             const query = {};
             const users = await usersCollection.find(query).toArray();
@@ -167,17 +191,14 @@ async function run() {
             const email = req.params.email;
             const query = { email };
             const user = await usersCollection.findOne(query);
-            res.send({ isAdmin: user?.role === 'admin' });
+            res.send({ isAdmin: user?.role === 'Admin' });
         })
         app.get('/users/buyer/:email', async (req, res) => {
             const email = req.params.email;
-            // console.log(email);
             const query = { email };
             const user = await usersCollection.findOne(query);
-            // console.log(user);
             res.send({ isBuyer: user?.role === 'Buyer' });
         })
-
 
         app.get('/users/seller/:email', async (req, res) => {
             const email = req.params.email;
@@ -188,8 +209,22 @@ async function run() {
 
 
 
+        // verify seller api
+        app.put('/users/seller/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    verify: true
+                }
+            }
+            const updatedResult = await usersCollection.updateOne(filter, updatedDoc);
+
+            res.send(updatedResult)
+        })
 
 
+        // user role update api 
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user);
@@ -199,27 +234,10 @@ async function run() {
 
 
         // delete api 
-
         app.delete('/users/:id', async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) }
             const result = await usersCollection.deleteOne(filter);
-            res.send(result);
-        });
-
-
-        app.delete('/products/:title', async (req, res) => {
-            const title = req.params.title;
-            const filter = { title: title };
-            const result = await productsCollection.deleteOne(filter);
-            res.send(result);
-        });
-
-
-        app.delete('/productCart/:title', async (req, res) => {
-            const title = req.params.title;
-            const filter = { title: title };
-            const result = await productCartCollection.deleteOne(filter);
             res.send(result);
         });
 
@@ -236,8 +254,33 @@ async function run() {
 
 
 
+
+        // ************************************
+        // delete by seller (from all collection) 
+        app.delete('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await productsCollection.deleteOne(filter);
+            const deleteFromWishlist = await wishlistCollection.deleteOne({ product_id: req.params.id })
+            const deleteFromProductCart = await productCartCollection.deleteOne({ product_id: req.params.id })
+            const deleteFromAdvertise = await advertiseCollection.deleteOne({ product_id: req.params.id })
+            res.send(result);
+        });
+
+        app.delete('/productCart/:title', async (req, res) => {
+            const title = req.params.title;
+            const filter = { title: title };
+            const result = await productCartCollection.deleteOne(filter);
+            res.send(result);
+        });
+
+
+        // *********************************************
+
+
         //********************************************************/
 
+        // // for payment to get product id 
         app.get('/productCart/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
